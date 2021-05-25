@@ -8,11 +8,14 @@ export type ReactMediaRecorderRenderProps = {
   pauseRecording: () => void;
   resumeRecording: () => void;
   stopRecording: () => void;
+  cancelRecording: () => void;
   mediaBlobUrl: null | string;
+  mediaBlob: null | Blob;
   status: StatusMessages;
   isAudioMuted: boolean;
   previewStream: MediaStream | null;
   clearBlobUrl: () => void;
+  clearBlob: () => void;
 };
 
 export type ReactMediaRecorderHookProps = {
@@ -20,6 +23,7 @@ export type ReactMediaRecorderHookProps = {
   video?: boolean | MediaTrackConstraints;
   screen?: boolean;
   onStop?: (blobUrl: string, blob: Blob) => void;
+  onStart?: () => void;
   blobPropertyBag?: BlobPropertyBag;
   mediaRecorderOptions?: MediaRecorderOptions | null;
 };
@@ -57,6 +61,7 @@ export function useReactMediaRecorder({
   audio = true,
   video = false,
   onStop = () => null,
+  onStart = () => null,
   blobPropertyBag,
   screen = false,
   mediaRecorderOptions = null,
@@ -67,6 +72,7 @@ export function useReactMediaRecorder({
   const [status, setStatus] = useState<StatusMessages>("idle");
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null);
+  const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<keyof typeof RecorderErrors>("NONE");
 
   const getMediaStream = useCallback(async () => {
@@ -117,7 +123,8 @@ export function useReactMediaRecorder({
     }
 
     const checkConstraints = (mediaType: MediaTrackConstraints) => {
-      const supportedMediaConstraints = navigator.mediaDevices.getSupportedConstraints();
+      const supportedMediaConstraints =
+        navigator.mediaDevices.getSupportedConstraints();
       const unSupportedConstraints = Object.keys(mediaType).filter(
         (constraint) =>
           !(supportedMediaConstraints as { [key: string]: any })[constraint]
@@ -146,10 +153,6 @@ export function useReactMediaRecorder({
         );
       }
     }
-
-    if (!mediaStream.current) {
-      getMediaStream();
-    }
   }, [audio, screen, video, getMediaStream, mediaRecorderOptions]);
 
   // Media Recorder Handlers
@@ -169,6 +172,7 @@ export function useReactMediaRecorder({
       mediaRecorder.current = new MediaRecorder(mediaStream.current);
       mediaRecorder.current.ondataavailable = onRecordingActive;
       mediaRecorder.current.onstop = onRecordingStop;
+      mediaRecorder.current.onstart = onRecordingStart;
       mediaRecorder.current.onerror = () => {
         setError("NO_RECORDER");
         setStatus("idle");
@@ -178,6 +182,9 @@ export function useReactMediaRecorder({
     }
   };
 
+  const onRecordingStart = () => {
+    onStart();
+  };
   const onRecordingActive = ({ data }: BlobEvent) => {
     mediaChunks.current.push(data);
   };
@@ -192,6 +199,7 @@ export function useReactMediaRecorder({
     const url = URL.createObjectURL(blob);
     setStatus("stopped");
     setMediaBlobUrl(url);
+    setMediaBlob(blob);
     onStop(url, blob);
   };
 
@@ -223,8 +231,18 @@ export function useReactMediaRecorder({
         mediaStream.current &&
           mediaStream.current.getTracks().forEach((track) => track.stop());
         mediaChunks.current = [];
+        mediaStream.current = null;
       }
     }
+  };
+
+  const cancelRecording = () => {
+    mediaRecorder.current = null;
+    mediaStream.current = null;
+    mediaChunks.current = [];
+    setMediaBlobUrl(null);
+    setMediaBlob(null);
+    setStatus("stopped");
   };
 
   return {
@@ -235,13 +253,16 @@ export function useReactMediaRecorder({
     pauseRecording,
     resumeRecording,
     stopRecording,
+    cancelRecording,
     mediaBlobUrl,
+    mediaBlob,
     status,
     isAudioMuted,
     previewStream: mediaStream.current
       ? new MediaStream(mediaStream.current.getVideoTracks())
       : null,
     clearBlobUrl: () => setMediaBlobUrl(null),
+    clearBlob: () => setMediaBlob(null),
   };
 }
 
