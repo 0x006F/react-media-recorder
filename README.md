@@ -234,6 +234,10 @@ const App = () => (
 );
 ```
 
+#### previewAudioStream
+
+If you want access to the live audio stream for use in sound visualisations, you can use this _stream_ as your audio source and extract data from it using the [AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext) and [AnalyzerNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) features of the Web Audio API. Some javascript examples of how to do this can be found [here](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API).
+
 ## Contributing
 
 Feel free to submit a PR if you found a bug (I might've missed many! :grinning:) or if you want to enhance it further.
